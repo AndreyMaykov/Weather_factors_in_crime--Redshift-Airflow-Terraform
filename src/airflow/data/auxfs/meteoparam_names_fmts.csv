@@ -1,0 +1,7 @@
+table_name,data_format
+temperature,"DECIMAL(5, 2)"
+pressure,"DECIMAL(6, 2)"
+humidity,"DECIMAL(5, 2)"
+wind_speed,"DECIMAL(5, 2)"
+wind_direction,"DECIMAL(5, 2)"
+description,"VARCHAR(MAX)"

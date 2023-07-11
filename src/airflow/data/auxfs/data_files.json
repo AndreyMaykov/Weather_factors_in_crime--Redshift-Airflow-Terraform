@@ -1,0 +1,22 @@
+{	
+	"data_files":[
+		{"local": "agencies.csv", "s3": "agencies.csv"},
+            	{"local": "crime_incidents.csv", "s3": "crime_incidents.csv"},
+		{"local": "meteodata/weather_stations.csv", "s3": "meteodata/weather_stations.csv"},		
+            	{"local": "meteodata/temperature.csv", "s3": "meteodata/temperature.csv"},
+            	{"local": "meteodata/humidity.csv", "s3": "meteodata/humidity.csv"},
+		{"local": "meteodata/pressure.csv", "s3": "meteodata/pressure.csv"},
+		{"local": "meteodata/wind_direction.csv", "s3": "meteodata/wind_direction.csv"},
+            	{"local": "meteodata/wind_speed.csv", "s3": "meteodata/wind_speed.csv"},
+		{"local": "meteodata/description.csv", "s3": "meteodata/description.csv"},
+		{"local": "auxfs/station_names.csv", "s3": "auxfs/station_names.csv"},
+		{"local": "auxfs/meteoparam_names_fmts.csv", "s3": "auxfs/meteoparam_names_fmts.csv"}
+	]
+}
+
+
+
+
+
+
+
