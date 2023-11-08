@@ -32,45 +32,45 @@ Data pipelines used to study this kind of problem are required to effectively pr
 [Further development](#further_development) </br>
 [References](#references) <br />
 
-<a name="technologies"><h2>Technologies</h2></a>
+<a name="technologies"></a><h2>Technologies</h2></a>
 - AWS Redshift (version:  PostgreSQL 8.0.2 on i686-pc-linux-gnu)
 - AWS S3
 - Apache Airflow (version: 2.5.0)
 - Docker (Docker Engine version: 20.10.12) and Docker Compose (version: 2.2.3)
 - Terraform (version: 1.3.7 on windows_386)
 
-<a name="data"><h2>Data</h2></a>
+<a name="data"></a><h2>Data</h2></a>
 
 Currently, there are three data sources used in the project: 
-1. <a name="crime_data_external"><a href="https://www.kaggle.com/datasets/louissebye/united-states-hate-crimes-19912017">United States Hate Crimes (1991-2018)</a></a>
-2. <a name="ori_external"><a href="https://docs.google.com/spreadsheets/d/1UC-KdQqXKUD5xAQZdmQnBcJ_u02wCe21Cco7nOhfsqA/">U.S. law enforcement agencies and ORI (Originating Agency Identifier) numbers</a></a>
-3. <a name="weather_data_external"><a href="https://www.kaggle.com/datasets/selfishgene/historical-hourly-weather-data">Historical Hourly Weather Data 2012-2017</a></a>
+1. <a name="crime_data_external"></a><a href="https://www.kaggle.com/datasets/louissebye/united-states-hate-crimes-19912017">United States Hate Crimes (1991-2018)</a>
+2. <a name="ori_external"></a><a href="https://docs.google.com/spreadsheets/d/1UC-KdQqXKUD5xAQZdmQnBcJ_u02wCe21Cco7nOhfsqA/">U.S. law enforcement agencies and ORI (Originating Agency Identifier) numbers</a>
+3. <a name="weather_data_external"></a><a href="https://www.kaggle.com/datasets/selfishgene/historical-hourly-weather-data">Historical Hourly Weather Data 2012-2017</a>
 
 (more to be added in further development).
   
-<a name="crime_data"><h3>Crime data</h3></a>
+<a name="crime_data"></a><h3>Crime data</h3>
 
 The first source provides a 50.1 MB <a href="/src/airflow/data/crime_incidents.csv">CSV file</a> containing information regarding crime incidents (see the <a href="/docs/Columns%20of%20crime_incidents.csv.md">list of its columns</a>).
   
 As for the information on incident locations and offenses, some extra work besides usual cleaning and formatting is needed to prepare the data for analysis.
   
-<a name="incident_locations"><h4>Incident locations</h4></a>
+<a name="incident_locations"></a><h4>Incident locations</h4>
 
 The location of an incident is essential for determining the related weather conditions. Unfortunately, the best option to locate incidents via this dataset is to use the locations of the law enforcement agencies  the dataset associates with the incidents (<a href="/docs/Columns%20of%20crime_incidents.csv.md">item #3 of the list</a>). The agencies' latitudes and longitudes can be obtained from the <a href="/src/airflow/data/agencies.csv">`agencies.csv`</a> file acquired from <a href="#ori_external">the second data source above</a>.
   
-<a name="combined_offense_names_problem"><h4>Offense names</h4></a>
+<a name="combined_offense_names_problem"></a><h4>Offense names</h4>
   
 Basically, the strings in the offense_name column (<a href="/docs/Columns%20of%20crime_incidents.csv.md">item #22</a>) utilize the set of standard offense names that <a href="https://ucr.fbi.gov/nibrs/2011/resources/nibrs-offense-codes">the National Incident-Based Reporting System</a> uses (they are listed in <a href="/docs/Offense%20names.md">Offense names.md</a>).
   
 However, one string can include more than just one of these standard names: when several names apply to a single incident, they are combined by concatenation (e.g. `"Aggravated Assault;Destruction/Damage/Vandalism of Property;Intimidation;Robbery;Simple Assault"` that is five semicolon-separated standard names). It could impede data filtering and thus deteriorate the performance of analytics queries. To avoid this, we can separate such combined names and restructure the data.
   
-<a name="weather_data"><h3>Weather data</h3></a>
+<a name="weather_data"></a><h3>Weather data</h3>
   
 The 71,2 MB dataset retrieved from <a href="#weather_data_external">the third source</a> is organized into seven CSV files: <a href="/src/airflow/data/meteodata/weather_stations.csv">one with weather station attributes</a>, including latitudes and longitudes, and <a href="https://github.com/AndreiMaikov/Weather_factors_in_crime--Terraform-Airflow-Redshift/tree/main/src/airflow/data/meteodata">six with meteoparameter values</a>. Each of the latter contains the values of one parameter (temperature, humidity, etc.) divided into station-specific columns, as well as a column providing the measurements' dates and hours. 
   
-<a name="data_model"><h2>Data model</h2></a>
+<a name="data_model"></a><h2>Data model</h2>
 
-After a series of transformations (which are discussed <a href="#transform_and_load">below</a>), the data is finally loaded into the tables of a "frontend" schema called <a name="wxcr_def">**`wxcr`**</a>. The transformations are made in another, "backend" schema **`wxcr_be`**, which is also used for initial data staging and to keep data auditing and cleaning logs. 
+After a series of transformations (which are discussed <a href="#transform_and_load">below</a>), the data is finally loaded into the tables of a "frontend" schema called <a name="wxcr_def"></a>**`wxcr`**. The transformations are made in another, "backend" schema **`wxcr_be`**, which is also used for initial data staging and to keep data auditing and cleaning logs. 
   
 The following diagram shows how the data in `wxcr` is organized into two fact tables and four dimension tables:
 
@@ -80,27 +80,27 @@ The following diagram shows how the data in `wxcr` is organized into two fact ta
   
 (due to the large number of columns `fct_crime_incidents` comprises, most of them are omitted from the diagram but listed in <a href="/docs/Columns%20of%20fct_crime_incidents.md"> Columns of fct_crime_incidents.md</a>). 
   
-<a name="dim_date_and_time">**dim_dates and dim_hours**</a>
+<a name="dim_date_and_time"></a>**dim_dates and dim_hours**
   
 These temporal dimension tables are included in the schema to facilitate executing analytic queries. The table `dim_dates` assigns an id to each date within a range (not necessarily the minimal one) covering all the dates in both crime incidents and meteodata datasets. The table is generated in the data transformation process (see <a href="#temporal_dimension_tables">below</a>). Such dimension tables are widely used in Ralph Kimball's dimension modeling methodology.<sup><a href="#Kimball_Ross">5</a></sup> Likewise, `dim_hours` assigns an id to each hour from 00:00 to 23:00.
   
-<a name="dim_ws_and_agencies">**dim_weather_stations and dim_agencies**</a>
+<a name="dim_ws_and_agencies"></a>**dim_weather_stations and dim_agencies**
   
 The tables essentially replicate the structure of the data in <a href="/src/airflow/data/meteodata">`weather_stations.csv`</a> and <a href="/src/airflow/data">`agencies_csv`</a>.
    
-<a name="denormalized_offense_names">**fct_crime_incidents: denormalized offense names**</a>
+<a name="denormalized_offense_names"></a>**fct_crime_incidents: denormalized offense names**
   
 The most important difference between <a href="#crime_data">the original dataset</a> and `fct_crime_incidents` is that the latter includes additional columns each of which corresponds to one of the standard/uncombined offense names. The value of such an additional attribute is simply a boolean flag indicating whether this offense name is part of the original `offense_name` string in `crime_incidents.csv`. This resolves the query performance problem mentioned <a href="#combined_offense_names_problem">above</a>. 
   
-<a name="reorganized_and_unified_meteo_datasets">**fct_meteodata: reorganized and unified meteo datasets**</a>
+<a name="reorganized_and_unified_meteo_datasets"></a>**fct_meteodata: reorganized and unified meteo datasets**
   
 The values of <a href="#weather_data">the six meteorological parameters</a> are grouped together in `fct_meteodata` that has one column for each parameter. Each row of the table contains the data related to the same station (specified in the `stn` column) and the date and time the values were measured.
 
-<a name="dist_and_sort_keys">**Distribution styles/keys and sort keys**</a>
+<a name="dist_and_sort_keys"></a>**Distribution styles/keys and sort keys**
 
 The styles and keys shown on the diagram were chosen considering the tables' size, the most likely types of analytics queries, and what data is expected to be added in the future.
 
-<a name="etl"><h2>ETL</h2></a>
+<a name="etl"></a><h2>ETL</h2>
 
 In this project, a Redshift cluster and an AWS S3 bucket are used for ETL operations (<a href="#creating_infrastructure">the next section</a> discusses how the infrastructure is created using Terraform).
 
@@ -134,13 +134,13 @@ The group **`create_sprocs`** in **`create_schemas_sprocs_upload_data`** consist
 
 For detail, see <a href="/src/airflow/dags/weather_factors_in_crime.py">`weather_factors_in_crime.py`</a> and the subsections below.
   
-<a name="extract"><h3>Extract</h3></a>
+<a name="extract"></a><h3>Extract</h3>
 
 <a href="#data">The original data files</a> are uploaded from the <a href="/src/airflow/data">`data`</a> folder of the local filesystem to the project's S3 bucket. The upload tasks (the <a href="#upload_data_to_s3__diagram">upload_data_to_s3</a> task group) utilize the Airflow `LocalFilesystemToS3Operator` operator. They are created via <a href="https://airflow.apache.org/docs/apache-airflow/2.3.0/concepts/dynamic-task-mapping.html">dynamic task mapping</a> using the <a href="/src/airflow/data/auxfs/data_files.json">`data_files.json`</a> file that specifies the local and S3 paths to the data files.
 
-<a name="transform_and_load"><h3>Transform and Load</h3></a>
+<a name="transform_and_load"></a><h3>Transform and Load</h3>
 
-<a name="agencies_and_weather_stations"><h4>Agencies and weather stations</h4></a>
+<a name="agencies_and_weather_stations"></a><h4>Agencies and weather stations</h4>
 
 The tasks `load_clean_agensies` and `load_clean_weather_station` copy agency and weather station attribute values from the corresponding files and format the copied data. 
 
@@ -148,7 +148,7 @@ Besides that, the tasks  involve handling original data errors. It is possible, 
 
 The results are loaded into the target tables <a href="#wxcr_erd">`wxcr.dim_agencies`</a> and <a href="#wxcr_erd">`wxcr.dim_weather_stations`</a> and do not undergo any transformations after that. Logs documenting the cleansing done are added to the `wxcr_be.log_table`.
 
-<a name="meteoparam_elt"><h4>Meteorological parameters</h4></a>
+<a name="meteoparam_elt"></a><h4>Meteorological parameters</h4>
 
 To create tables for staging the meteoparameter data from the S3 bucket to Redshift, two user-created CSV files are used: <a href="/src/airflow/data/auxfs/meteoparam_names_fmts.csv">`meteoparam_names_fmts.csv`</a> and <a href="/src/airflow/data/auxfs/station_names.csv">`station_names.csv`</a>. The first one specifies the format of each meteoparameter; the second one, the names of the weather stations (the user can define these names different from the column names in the original CSV files). 
 
@@ -166,19 +166,19 @@ When the six `unpivot_meteoparam_tbl` tasks have been completed, their results a
 
 At this point, the only adjustment the meteo data still needs is <a href="#dim_date_and_time">assigning date and time ids to each record</a>. It will be done <a href="#fact_tables">in a later stage</a>.
 
-<a name="crime_incidents_elt"><h4>Crime incidents</h4></a> 
+<a name="crime_incidents_elt"></a><h4>Crime incidents</h4> 
 
 The task <a href="#entire_workflow">`load_clean_crime_incidents`</a> <a name="load_clean_crime_incidents"></a> copies data from the project's S3 bucket and performs documented cleansing and formatting  &mdash; very similar to what `load_clean_agencies` and `load_clean_weather_station` do, but in contrast to these two tasks, the result of `load_clean_crime_incidents` is not ready for the "frontend" `wxcr` schema. The main reason is that the offense names have not yet been <a href="#combined_offense_names_problem">separated</a>. Besides, just like in the case of the meteoparameter data, <a href="#dim_date_and_time">assigning date and time ids</a> is required.
 
 The task <a href="#entire_workflow">`split_ci_offenses`</a> separates the standard offense names and organizes them into individual rows of a new table `wxcr_be.ci_offense_names_normalized`.  Thus each incident in this new table is represented by as many rows as its original `offense_name` string has in `crime_incidents.csv` (for detail, see <a href="/src/airflow/dags/sql/sprocs/split_offenses_ci__sproc.sql">`split_offenses_ci__sproc.sql`</a>).
 
-Using <a name="normalized_offense_names">`wxcr_be.ci_offense_names_normalized`</a>, the task group <a href="#cdtt_and_pcit">`pivot_ci_table`</a> 
+Using <a name="normalized_offense_names"></a>`wxcr_be.ci_offense_names_normalized`, the task group <a href="#cdtt_and_pcit">`pivot_ci_table`</a> 
 - collects all the individual standard offense names mentioned in any of the `offense_name` strings of `crime_incidents.csv`; 
 - creates a table `wxcr_be.ci_offense_names_denormalized` with
     - one column containing crime incident ids; 
     - each of the other columns corresponding to a "standard" offense name, and the column's values indicating if the offense name is relevant to the given incident.
   
-<a name="temporal_dimension_tables"><h4>Temporal dimension tables</h4></a> 
+<a name="temporal_dimension_tables"></a><h4>Temporal dimension tables</h4> 
 
 The task <a href="#cdtt_and_pcit">`create_dim_dates`</a> generates a set of consecutive dates for the `dim_date` table. As mentioned <a href="#dim_date_and_time">above</a>, this set must cover at least all the dates included in any of the two cleaned datasets &ndash; crime and meteo. However, the user may want to have an even wider date range covered (for example, if some additional crime or meteo data is expected to come after the current data have been loaded into `wxcr`). In this case, the user specifies the date range that must be covered  (see comments in `weather_factors_in_crime.py`). If the user doesn't specify the range, the task automatically generates the minimal set of dates.
   
@@ -186,13 +186,13 @@ To generate the set, a recursive CTE (common table expression) is used (see <a h
   
 A similar algorithm is used to populate the table <a href="#dim_date_and_time">`dim_hours`</a>.
 
-<a name="fact_tables"><h4>Fact tables</h4></a> 
+<a name="fact_tables"></a><h4>Fact tables</h4> 
 
 The task group <a href="#create_fct_tables">`create_fct_tables`</a> completes the ETL process by joining upstream-created tables into <a href="#wxcr_erd">`fct_meteodata` and `fct_crime_incidents`</a>
 (see <a href="/src/airflow/dags/sql/create_fct_crime_incidents.sql">`create_fct_crime_incidents.sql`</a> and 
 <a href="/src/airflow/dags/sql/create_fct_meteodata.sql">`create_fct_meteodata.sql`</a>) and adding the required distribution and sort keys.
 
-<a name="creating_infrastructure"><h2>Creating and destroying the infrastructure via Terraform</h2></a>
+<a name="creating_infrastructure"></a><h2>Creating and destroying the infrastructure via Terraform</h2>
 
 The infrastructure is defined in `the full.tf`and includes
 - an AWS VPC;
@@ -224,7 +224,7 @@ The script `infrastructure_deploy.sh` passes to Terraform the variable values fr
 
 The infrastructure can be terminated by running the `infrastructure_destroy.sh` script.
 
-<a name="further_development"><h2>Further development</h2></a>
+<a name="further_development"></a><h2>Further development</h2>
 1. To provide for a meaningful analysis, more comprehensive datasets are required.
    - Adding crime incident data from sources different from <a href="#crime_data_external">the one used in this project</a> would facilitate a better understanding of crime patterns. It could be helpful to include data from non-US regions.
    - The weather data must match the crime data both geographically and temporally. Therefore, <a href="#weather_data_external">the current weather dataset</a> needs to be extended significantly.
@@ -233,9 +233,9 @@ The infrastructure can be terminated by running the `infrastructure_destroy.sh` 
 
 
 
-<a name="references"><h2>References</h2></a>
-1.	<a name="Rotton_Cohn_Textbook">Rotton, J., Cohn, E. G. Climate, weather and crime.</a> In: Bechtel, R. B., & Churchman, A. (Eds.). (2003). *Handbook of environmental psychology.* John Wiley & Sons. [<a href="https://scholar.google.com/scholar?cluster=15911032322184545526&hl=en&as_sdt=0,5">Google Scholar</a>]
-2.	<a name="Ruderman_Cohn_2021">Ruderman, D., & Cohn, E. G. (2021).</a> Predictive extrinsic factors in multiple victim shootings. *The Journal of Primary Prevention, 42,* 59-75. [<a href="https://pubmed.ncbi.nlm.nih.gov/32671646/">PubMed</a>] [<a href="https://link.springer.com/article/10.1007/s10935-020-00602-3">Full Text</a>]
-3.	<a name="Mahendran_et_all_2021">Mahendran, R., Xu, R., Li, S., & Guo, Y. (2021).</a> Interpersonal violence associated with hot weather. *The Lancet Planetary Health, 5*(9), e571-e572. [<a href="https://pubmed.ncbi.nlm.nih.gov/34508676/">PubMed</a>] [<a href="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=%22Interpersonal+violence+associated+with+hot+weather%22&btnG=">Google Scholar</a>]
-4.	<a name="Brundson_et_all">Brunsdon, C., Corcoran, J., Higgs, G., & Ware, A.</a> (2009). The influence of weather on local geographical patterns of police calls for service. *Environment and Planning B: Planning and Design, 36*(5), 906-926. [<a href="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=%22The+influence+of+weather+on+local+geographical+patterns+of+police+calls+for+service%22">Google Scholar</a>]
-5. <a name="Kimball_Ross">Kimball, R., & Ross, M. (2011).</a> *The data warehouse toolkit: the complete guide to dimensional modeling.* John Wiley & Sons. [<a href="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=The+Data+Warehouse+Toolkit&btnG=">Google Scholar</a>]
+<a name="references"></a><h2>References</h2>
+1.	<a name="Rotton_Cohn_Textbook"></a>Rotton, J., Cohn, E. G. Climate, weather and crime. In: Bechtel, R. B., & Churchman, A. (Eds.). (2003). *Handbook of environmental psychology.* John Wiley & Sons. [<a href="https://scholar.google.com/scholar?cluster=15911032322184545526&hl=en&as_sdt=0,5">Google Scholar</a>]
+2.	<a name="Ruderman_Cohn_2021"></a>Ruderman, D., & Cohn, E. G. (2021). Predictive extrinsic factors in multiple victim shootings. *The Journal of Primary Prevention, 42,* 59-75. [<a href="https://pubmed.ncbi.nlm.nih.gov/32671646/">PubMed</a>] [<a href="https://link.springer.com/article/10.1007/s10935-020-00602-3">Full Text</a>]
+3.	<a name="Mahendran_et_all_2021"></a>Mahendran, R., Xu, R., Li, S., & Guo, Y. (2021). Interpersonal violence associated with hot weather. *The Lancet Planetary Health, 5*(9), e571-e572. [<a href="https://pubmed.ncbi.nlm.nih.gov/34508676/">PubMed</a>] [<a href="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=%22Interpersonal+violence+associated+with+hot+weather%22&btnG=">Google Scholar</a>]
+4.	<a name="Brundson_et_all"></a>Brunsdon, C., Corcoran, J., Higgs, G., & Ware, A. (2009). The influence of weather on local geographical patterns of police calls for service. *Environment and Planning B: Planning and Design, 36*(5), 906-926. [<a href="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=%22The+influence+of+weather+on+local+geographical+patterns+of+police+calls+for+service%22">Google Scholar</a>]
+5. <a name="Kimball_Ross"></a>Kimball, R., & Ross, M. (2011). *The data warehouse toolkit: the complete guide to dimensional modeling.* John Wiley & Sons. [<a href="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=The+Data+Warehouse+Toolkit&btnG=">Google Scholar</a>]
