@@ -229,7 +229,7 @@ The infrastructure can be terminated by running the `infrastructure_destroy.sh` 
    - Adding crime incident data from sources different from <a href="#crime_data_external">the one used in this project</a> would facilitate a better understanding of crime patterns. It could be helpful to include data from non-US regions.
    - The weather data must match the crime data both geographically and temporally. Therefore, <a href="#weather_data_external">the current weather dataset</a> needs to be extended significantly.
 2. It would be interesting to compare the performance of <a href="#data_model">the employed data model</a> with that of its alternatives (for example, one that uses <a href="#normalized_offense_names">normalized standard offense names</a> or a model without <a href="#dim_date_and_time">date and hour dimensions</a>). Another problem to look into is data model optimization (e.g. choosing the distribution styles/keys  and sort keys).
-3. Some security improvements, including those related to handling AWS credentials and the use of IAM role policies, should be made.
+3. Some security improvements, including those related to handling AWS credentials and the use of IAM role policies, should be made. 
 
 
 
